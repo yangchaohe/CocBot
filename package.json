@@ -1,0 +1,17 @@
+{
+  "dependencies": {
+    "axios": "^0.21.4",
+    "clashofclans": "^1.0.0",
+    "clashofclans.js": "^1.5.3",
+    "diff": "^5.0.0",
+    "http-proxy-agent": "^5.0.0",
+    "log4js": "^6.3.0",
+    "mirai-js": "^2.0.2",
+    "mysql": "^2.18.1",
+    "n": "^7.5.0",
+    "node-global-proxy": "^1.0.1",
+    "objectdiff": "^1.1.0",
+    "request": "^2.88.2",
+    "xml2js": "^0.4.23"
+  }
+}

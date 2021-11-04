@@ -38,7 +38,7 @@ class Coc {
 
 	async getClanWarLeagueState(clanTag) {
 		let CWL = await this.client.clanWarLeague(clanTag);
-		log.debug('CWL: ', JSON.stringify(CWL).toString())
+		log.debug('CWL: ', JSON.stringify(CWL).toString());
 		if (CWL.state == 'notInWar') {
 			return false;
 		}
@@ -68,7 +68,7 @@ class Coc {
 			for (let j = 0; j < round.warTags.length; j++) {
 				const warTag = round.warTags[j];
 				let war = await that.client.clanWarLeagueWar(warTag);
-				log.debug('解析联赛round 得到 war %d：%s', i, JSON.stringify(war).toString())
+				log.debug('解析联赛 round 得到 war %d：%s', i, JSON.stringify(war).toString())
 				if (war.state == 'notInWar') { continue; }
 				if (war.clan.tag == clanTag) {
 					state.push(that.getWarState(war));

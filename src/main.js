@@ -21,7 +21,7 @@ let checkWarTime;
 async function init() {
     log.info('开始初始化');
     await bot.open({
-        baseUrl: 'http://192.168.3.79:7000',
+        baseUrl: 'http://192.168.0.11:7000',
         verifyKey: 'yangchaohe',
         // 要绑定的 qq，须确保该用户已在 mirai-console 登录
         qq: 2646377197,
@@ -145,8 +145,11 @@ async function start() {
                 }
                 if (text.includes('/coc 积分')) {
                     let [prefix, options, id, points] = text.split(' ');
-                    if (id !== undefined && typeof (id) === 'number'){
-                        if (points == undefined || typeof (points) !== 'number'){
+                    id = parseInt(id);
+                    points = parseInt(points);
+                    log.debug('prefix %s, options %s, id %d, points %d', prefix, options, id, points);
+                    if (!Number.isNaN(id) && typeof (id) === 'number'){
+                        if (Number.isNaN(points) || typeof (points) !== 'number'){
                             sendAndLog({
                                 obj: group,
                                 mes: new Message().addPlain('请输入积分'),
@@ -177,7 +180,7 @@ async function start() {
                             '/coc 上传阵型 <大本等级>\n'+
                             '/coc 联赛 <联赛场次>\n'+
                             '/coc 部落战\n'+
-                            '/coc 积分\n'+
+                            '/coc 积分 [id] [points]\n'+
                             '被动功能：\n'+
                             '1. 部落战快结束自动提示未进攻成员\n'+
                             '2. 成员进攻播报（缓冲10分钟）';

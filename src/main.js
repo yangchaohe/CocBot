@@ -8,22 +8,21 @@ const fs = require('fs');
 const axios = require('axios');
 const url = require('url');
 const { Coc } = require('./coc');
+let coc = new Coc();
 const { parseString } = require('xml2js');
 // const {bootstrap} = require('global-agent');
 // bootstrap();
 
 let leagueState;
 let warState;
-let coc = new Coc();
 let checkWarTime;
 
 // 连接到一个 mirai-api-http 服务
 async function init() {
     log.info('开始初始化');
     await bot.open({
-        baseUrl: 'http://192.168.0.11:7000',
+        baseUrl: 'http://192.168.3.79:7000',
         verifyKey: 'yangchaohe',
-        // 要绑定的 qq，须确保该用户已在 mirai-console 登录
         qq: 2646377197,
     })
     log.info('接入 maria qq api 成功');
@@ -51,7 +50,7 @@ async function start() {
     bot.on('GroupMessage',
         new Middleware()
             .textProcessor()
-            .done(async ({ text, sender: { group: { id: group } } }) => {
+            .done(async ({ text, sender: { permission: permission, group: { id: group } } }) => {
                 if (text.includes('/coc 阵型')) {
                     let [prefix, options, level, limit] = text.split(' ');
                     level = parseInt(level);
@@ -146,15 +145,30 @@ async function start() {
                 if (text.includes('/coc 积分')) {
                     let [prefix, options, id, points] = text.split(' ');
                     id = parseInt(id);
+                    let pointList = coc.showPoints();
                     points = parseInt(points);
                     log.debug('prefix %s, options %s, id %d, points %d', prefix, options, id, points);
                     if (!Number.isNaN(id) && typeof (id) === 'number'){
+
+                        if (id > pointList.length) {
+                            sendAndLog({
+                                obj: group,
+                                mes: new Message().addPlain('Out of range!'),
+                            });
+                        }
                         if (Number.isNaN(points) || typeof (points) !== 'number'){
                             sendAndLog({
                                 obj: group,
-                                mes: new Message().addPlain('请输入积分'),
+                                mes: new Message().addPlain(id + '. ' + pointList[id].name + ': ' + pointList[id].point),
                             });
                         } else {
+                            if (permission == Bot.groupPermission.MEMBER) {
+                                sendAndLog({
+                                    obj: group,
+                                    mes: new Message().addPlain('您没有相关权限设置'),
+                                });
+                                return;
+                            }
                             coc.addPoints(id, points);
                             sendAndLog({
                                 obj: group,
@@ -163,8 +177,7 @@ async function start() {
                         }
                     } else {
                         let messageArr = [];
-                        let points = coc.showPoints();
-                        points.forEach((mp, index) => {
+                        pointList.forEach((mp, index) => {
                             let str = index + '. ' + mp.name + ': ' + mp.point;
                             messageArr.push(str);
                         });
@@ -276,12 +289,12 @@ async function start() {
     bot.on('GroupMessage',
         new Middleware()
             .messageProcessor(['Plain', 'Image', 'Voice', 'Xml'])
-            .done(async data => {
-                const { Plain, Image, Voice, Xml } = data.classified;
-                Plain.forEach(v => { log.info(' -> ' + v.text); });
-                Image.forEach(v => { log.info(' -> ' + JSON.stringify(v.image)); });
-                Voice.forEach(v => { log.info(' -> ' + JSON.stringify(v.voice)); });
-                Xml.forEach(v => { log.info(' -> ' + JSON.stringify(v.xml)); });
+            .done(async ({ classified, sender: { id: member, memberName: memberName, group: { id: group, name: name }} }) => {
+                const { Plain, Image, Voice, Xml } = classified;
+                Plain.forEach(v => { log.info('[%s(%s)] %s(%s) -> %s', name, group, memberName, member, v.text); });
+                Image.forEach(v => { log.info('[%s(%s)] %s(%s) -> %s', name, group, memberName, member, JSON.stringify(v.image)); });
+                Voice.forEach(v => { log.info('[%s(%s)] %s(%s) -> %s', name, group, memberName, member, JSON.stringify(v.voice)); });
+                Xml.forEach(v => { log.info('[%s(%s)] %s(%s) -> %s', name, group, memberName, member, JSON.stringify(v.xml)); });
             })
     );
 }
@@ -316,6 +329,7 @@ async function sendAndLog(option) {
     });
     log.info(obj + ' <- ' + JSON.stringify(mes));
 }
+
 const download_image = (url, image_path) =>
     axios({
         url,

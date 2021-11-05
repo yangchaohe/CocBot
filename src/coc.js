@@ -37,8 +37,11 @@ class Coc {
 	}
 
 	async getClanWarLeagueState(clanTag) {
-		let CWL = await this.client.clanWarLeague(clanTag);
-		log.debug('CWL: ', JSON.stringify(CWL).toString());
+		let CWL;
+		do {
+			CWL = await this.client.clanWarLeague(clanTag);
+			log.debug('CWL: ', JSON.stringify(CWL).toString());
+		} while (CWL.ok === false);
 		if (CWL.state == 'notInWar') {
 			return false;
 		}
@@ -60,15 +63,22 @@ class Coc {
 		if (rounds === undefined) {
 			log.debug('round is undefined');
 		}
-		log.debug('传入 Round：', JSON.stringify(rounds).toString())
+		log.debug('round：', JSON.stringify(rounds).toString())
 		var that = this;
 		var state = [];
 		for (let i = 0; i < rounds.length; i++) {
 			const round = rounds[i];
 			for (let j = 0; j < round.warTags.length; j++) {
 				const warTag = round.warTags[j];
-				let war = await that.client.clanWarLeagueWar(warTag);
-				log.debug('解析联赛 round 得到 war %d：%s', i, JSON.stringify(war).toString())
+				log.debug('round %d -> warTag %d：%s', i, j, warTag)
+				if (warTag === '#0') {
+					continue;
+				}
+				let war;
+				do {
+					war = await that.client.clanWarLeagueWar(warTag);
+					log.debug('round %d -> warData %d：%s', i, j, JSON.stringify(war).toString())
+				} while (war.ok === false)
 				if (war.state == 'notInWar') { continue; }
 				if (war.clan.tag == clanTag) {
 					state.push(that.getWarState(war));
@@ -178,14 +188,14 @@ class Coc {
 			log.debug('新成员数据：%s', JSON.stringify(newMember).toString());
 			let diffData = diff(this.inWarMembersInfo[i], newMember);
 			log.debug('diff成员数据：%s', JSON.stringify(diffData).toString());
-			if (diffData.changed === 'equal'){
+			if (diffData.changed === 'equal') {
 				return;
 			}
 			if (diffData.value.attacks != undefined) {
-				for(var i in diffData) {
-					if (diffData.value.attacks.value[i].changed != 'equal'){
-						this.diffMembersInfo.push({name: newMember.name, attacks: diffData.value.attacks.value[i]});
-					}
+				if (diffData.value.attacks.changed != 'equal') {
+					diffData.value.attacks.value.forEach((e) => {
+						this.diffMembersInfo.push({ name: newMember.name, attacks: e });
+					})
 				}
 				return;
 			}
@@ -195,13 +205,13 @@ class Coc {
 	async initPoint(clanTag) {
 		let member_list = (await this.client.clanMembers(clanTag)).items;
 		let write_data = [];
-		member_list.forEach((member)=>{
+		member_list.forEach((member) => {
 			let name = member.name;
 			let tag = member.tag;
 			let point = 0;
 			write_data.push({ name, tag, point })
 		});
-        fs.writeFileSync('/home/manu/QQ-rebot/mcl/clashOfClans/resources/point.json', JSON.stringify(write_data));
+		fs.writeFileSync('/home/manu/QQ-rebot/mcl/clashOfClans/resources/point.json', JSON.stringify(write_data));
 	}
 
 	addPoints(id, points) {

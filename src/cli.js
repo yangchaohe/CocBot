@@ -27,14 +27,18 @@ cli
     .command('lay <level> [limit]')
     .description('随机获取一个大本营等级的阵型图和链接，limit 是数量');
 cli
-    .option('-w, --war', '获取当前部落战信息')
+    .option('-W, --War', '获取当前部落战信息');
 cli
     .command('league <num>')
     .description('获取当前部联赛信息, num = 场次');
 
-cli.outputHelp({ error: true });
-
-cli.parse(process.argv);
+// cli.outputHelp({ error: true });
+cli.exitOverride();
+try {
+    cli.parse(process.argv);
+} catch (error) {
+    console.log(cli.helpInformation());
+}
 
 let l = cli.opts();
 console.log(JSON.stringify(l));

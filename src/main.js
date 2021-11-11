@@ -7,11 +7,8 @@ const layout = new Layout();
 const fs = require('fs');
 const axios = require('axios');
 const url = require('url');
-const { Coc } = require('./coc');
-let coc = new Coc();
+const { cocF } = require('./coc');
 const { parseString } = require('xml2js');
-// const {bootstrap} = require('global-agent');
-// bootstrap();
 
 let leagueState;
 let warState;
@@ -27,16 +24,18 @@ async function init() {
     })
     log.info('接入 maria qq api 成功');
     let flag = true;
+    let coc;
     do {
         log.info('加载 coc 插件');
-        await coc.init()
-            .then(() => {
-                log.info('coc 插件加载成功');
-                flag = false;
-            })
-            .catch(() => {
-                log.error('载入 coc 插件失败，待重试');
-            });
+        // await coc.init()
+        //     .then(() => {
+        //         log.info('coc 插件加载成功');
+        //         flag = false;
+        //     })
+        //     .catch(() => {
+        //         log.error('载入 coc 插件失败，待重试');
+        //     });
+        coc = await cocF();
     } while (flag);
     log.info('初始化完毕');
     syncCoc();
@@ -52,140 +51,12 @@ async function start() {
             .textProcessor()
             .done(async ({ text, sender: { permission: permission, group: { id: group } } }) => {
                 if (text.includes('/coc 阵型')) {
-                    let [prefix, options, level, limit] = text.split(' ');
-                    level = parseInt(level);
-                    limit = parseInt(limit);
-                    if (Number.isNaN(level) || typeof (level) !== 'number') {
-                        sendAndLog({
-                            obj: group,
-                            mes: new Message().addPlain('指令错误! \n正确用法：「/coc 阵型 数字」'),
-                        })
-                        return;
-                    }
-                    let message;
-                    if (!Number.isNaN(limit) && typeof (limit) === 'number') {
-                        lay = layout.getLayout(level, limit);
-                        message = new Message();
-                        log.debug(lay);
-                        if (Array.isArray(lay) && lay.length === 0) {
-                            message = message.addPlain('没有该数据！');
-                        } else {
-                            lay.forEach(e => {
-                                message = message.addImagePath(e.imgPath).addPlain(e.link);
-                            });
-                        }
-                    } else {
-                        lay = layout.getRandom(level);
-                        message = new Message().addImagePath(lay.imgPath).addPlain(lay.link);
-                    }
-                    sendAndLog({
-                        obj: group,
-                        mes: message,
-                    });
                 }
                 if (text.includes('/coc 部落战')) {
-                    let [prefix, options] = text.split(' ');
-                    let info;
-                    if (warState == undefined) {
-                        sendAndLog({
-                            obj: group,
-                            mes: new Message().addPlain('正在为您查询中，请稍等'),
-                        });
-                        info = await coc.getClanWarState('#2Y9GLJC0Y');
-                        warState = info;
-                    } else {
-                        info = warState;
-                    }
-                    sendAndLog({
-                        obj: group,
-                        mes: new Message().addPlain(info),
-                    });
                 }
                 if (text.includes('/coc 联赛')) {
-                    let [prefix, options, num] = text.split(' ');
-                    if (num === undefined) {
-                        sendAndLog({
-                            obj: group,
-                            mes: new Message().addPlain('指令错误！'),
-                        });
-                    }
-                    num = parseInt(num);
-                    let infos;
-                    if (leagueState == undefined) {
-                        sendAndLog({
-                            obj: group,
-                            mes: new Message().addPlain('正在为您查询中，请稍等'),
-                        });
-                        infos = await coc.getClanWarLeagueState('#2Y9GLJC0Y');
-                        leagueState = infos;
-                    } else {
-                        infos = leagueState;
-                    }
-                    if (!Number.isNaN(num) && typeof (num) === 'number') {
-                        let info = infos[num - 1];
-                        sendAndLog({
-                            obj: group,
-                            mes: new Message().addPlain('第' + (num) + '场战斗\n').addPlain(info),
-                        });
-                    } else if (Array.isArray(infos)) {
-                        for (let i = 0; i < infos.length; i++) {
-                            const info = infos[i];
-                            sendAndLog({
-                                obj: group,
-                                mes: new Message().addPlain('第' + (i + 1) + '场战斗\n').addPlain(info),
-                            })
-                        }
-                    } else {
-                        sendAndLog({
-                            group,
-                            message: new Message().addPlain('未知错误'),
-                        })
-                    }
                 }
                 if (text.includes('/coc 积分')) {
-                    let [prefix, options, id, points] = text.split(' ');
-                    id = parseInt(id);
-                    let pointList = coc.showPoints();
-                    points = parseInt(points);
-                    log.debug('prefix %s, options %s, id %d, points %d', prefix, options, id, points);
-                    if (!Number.isNaN(id) && typeof (id) === 'number'){
-
-                        if (id > pointList.length) {
-                            sendAndLog({
-                                obj: group,
-                                mes: new Message().addPlain('Out of range!'),
-                            });
-                        }
-                        if (Number.isNaN(points) || typeof (points) !== 'number'){
-                            sendAndLog({
-                                obj: group,
-                                mes: new Message().addPlain(id + '. ' + pointList[id].name + ': ' + pointList[id].point),
-                            });
-                        } else {
-                            if (permission == Bot.groupPermission.MEMBER) {
-                                sendAndLog({
-                                    obj: group,
-                                    mes: new Message().addPlain('您没有相关权限设置'),
-                                });
-                                return;
-                            }
-                            coc.addPoints(id, points);
-                            sendAndLog({
-                                obj: group,
-                                mes: new Message().addPlain('积分设置完成'),
-                            });
-                        }
-                    } else {
-                        let messageArr = [];
-                        pointList.forEach((mp, index) => {
-                            let str = index + '. ' + mp.name + ': ' + mp.point;
-                            messageArr.push(str);
-                        });
-                        sendAndLog({
-                            obj: group,
-                            mes: new Message().addPlain(messageArr.join('\n')),
-                        })
-                    }
                 }
                 if (text.includes('/coc help')) {
                     let message;
@@ -212,76 +83,6 @@ async function start() {
             .syncWrapper()
             .done(async ({ waitFor, text, bot, sender: { id: member, memberName: memberName, group: { id: group } } }) => {
                 if (text.includes('/coc 上传阵型')) {
-                    let [prefix, options, level] = text.split(' ');
-                    level = parseInt(level);
-                    if (!typeof (level) === 'number') {
-                        sendAndLog({
-                            obj: group,
-                            mes: new Message().addPlain('指令错误! \n正确用法：「/coc 上传阵型 数字」'),
-                        })
-                        return;
-                    }
-                    sendAndLog({
-                        obj: group,
-                        mes: new Message().addPlain('请输入该阵型的图片'),
-                    });
-                    sendAndLog({
-                        obj: group,
-                        mes: new Message().addPlain('注意：上传阵型必选世界类型、图片和链接。'),
-                    })
-                    const image = await waitFor.messageChain();
-                    const { url: imgUrl } = await image[1];
-                    sendAndLog({
-                        obj: group,
-                        mes: new Message().addPlain('请输入该阵型的链接'),
-                    });
-                    do {
-                        var link = await waitFor.messageChain();
-                        if (link[1].type == 'Xml') {
-                            xml = link[1].xml;
-                            parseString(xml, function (err, result) { link = result.msg.$.url; });
-                        } else if (link[1].type == 'Plain') {
-                            link = link[1].text;
-                        } else if (link === 'exit') {
-                            return;
-                        } else {
-                            log.debug(link);
-                            sendAndLog({
-                                obj: group,
-                                mes: new Message().addPlain('debug 1')
-                            })
-                        }
-                        if (!isCocLink(link)) {
-                            sendAndLog({
-                                obj: group,
-                                mes: new Message().addPlain('链接格式错误或者无法访问！请重试！(exit退出)'),
-                            });
-                        }
-                    } while (!isCocLink(link));
-                    do {
-                        sendAndLog({
-                            obj: group,
-                            mes: new Message().addPlain('请输入该阵型的类型（主世界，部落战，夜世界）'),
-                        });
-                        var type = await waitFor.text();
-                    } while (!['主世界', '部落战', '夜世界'].includes(type))
-                    // download
-                    let auth = memberName + '-' + member.toString();
-                    let imgPath = 'resources/'
-                        + 'layout/'
-                        + 'Level'
-                        + level
-                        + '/'
-                        + auth
-                        + '-'
-                        + new Date().getTime().toString()
-                        + '.jfif';
-                    await download_image(imgUrl, imgPath);
-                    layout.addLayout({ level, imgPath, type, link, auth });
-                    sendAndLog({
-                        obj: group,
-                        mes: new Message().addPlain('阵型上传完毕。\n感谢分享！'),
-                    });
                 }
             })
     );
@@ -436,4 +237,206 @@ function diffTime(date1, date2) {
     return day + ' day ' + hour + ' h ' + minute + ' min ';
 }
 
+function layout_(level, limit) {
+    level = parseInt(level);
+    limit = parseInt(limit);
+    if (Number.isNaN(level) || typeof (level) !== 'number') {
+        sendAndLog({
+            obj: group,
+            mes: new Message().addPlain('指令错误! \n正确用法：「/coc 阵型 数字」'),
+        })
+        return;
+    }
+    let message;
+    if (!Number.isNaN(limit) && typeof (limit) === 'number') {
+        lay = layout.getLayout(level, limit);
+        message = new Message();
+        log.debug(lay);
+        if (Array.isArray(lay) && lay.length === 0) {
+            message = message.addPlain('没有该数据！');
+        } else {
+            lay.forEach(e => {
+                message = message.addImagePath(e.imgPath).addPlain(e.link);
+            });
+        }
+    } else {
+        lay = layout.getRandom(level);
+        message = new Message().addImagePath(lay.imgPath).addPlain(lay.link);
+    }
+    sendAndLog({
+        obj: group,
+        mes: message,
+    });
+}
+
+async function uploadLayout(level, waitFor) {
+    level = parseInt(level);
+    if (!typeof (level) === 'number') {
+        sendAndLog({
+            obj: group,
+            mes: new Message().addPlain('指令错误! \n正确用法：「/coc 上传阵型 数字」'),
+        })
+        return;
+    }
+    sendAndLog({
+        obj: group,
+        mes: new Message().addPlain('请输入该阵型的图片'),
+    });
+    sendAndLog({
+        obj: group,
+        mes: new Message().addPlain('注意：上传阵型必选世界类型、图片和链接。'),
+    })
+    const image = await waitFor.messageChain();
+    const { url: imgUrl } = await image[1];
+    sendAndLog({
+        obj: group,
+        mes: new Message().addPlain('请输入该阵型的链接'),
+    });
+    do {
+        var link = await waitFor.messageChain();
+        if (link[1].type == 'Xml') {
+            xml = link[1].xml;
+            parseString(xml, function (err, result) { link = result.msg.$.url; });
+        } else if (link[1].type == 'Plain') {
+            link = link[1].text;
+        } else if (link === 'exit') {
+            return;
+        } else {
+            log.debug(link);
+            sendAndLog({
+                obj: group,
+                mes: new Message().addPlain('debug 1')
+            })
+        }
+        if (!isCocLink(link)) {
+            sendAndLog({
+                obj: group,
+                mes: new Message().addPlain('链接格式错误或者无法访问！请重试！(exit退出)'),
+            });
+        }
+    } while (!isCocLink(link));
+    do {
+        sendAndLog({
+            obj: group,
+            mes: new Message().addPlain('请输入该阵型的类型（主世界，部落战，夜世界）'),
+        });
+        var type = await waitFor.text();
+    } while (!['主世界', '部落战', '夜世界'].includes(type))
+    // download
+    let auth = memberName + '-' + member.toString();
+    let imgPath = 'resources/'
+        + 'layout/'
+        + 'Level'
+        + level
+        + '/'
+        + auth
+        + '-'
+        + new Date().getTime().toString()
+        + '.jfif';
+    await download_image(imgUrl, imgPath);
+    layout.addLayout({ level, imgPath, type, link, auth });
+    sendAndLog({
+        obj: group,
+        mes: new Message().addPlain('阵型上传完毕。\n感谢分享！'),
+    });
+}
+
+async function war(){
+    let info;
+    if (warState == undefined) {
+        sendAndLog({
+            obj: group,
+            mes: new Message().addPlain('正在为您查询中，请稍等'),
+        });
+        info = await coc.getClanWarState('#2Y9GLJC0Y');
+        warState = info;
+    } else {
+        info = warState;
+    }
+    sendAndLog({
+        obj: group,
+        mes: new Message().addPlain(info),
+    });
+}
+
+async function league(num){
+    num = parseInt(num);
+    let infos;
+    if (leagueState == undefined) {
+        sendAndLog({
+            obj: group,
+            mes: new Message().addPlain('正在为您查询中，请稍等'),
+        });
+        infos = await coc.getClanWarLeagueState('#2Y9GLJC0Y');
+        leagueState = infos;
+    } else {
+        infos = leagueState;
+    }
+    if (!Number.isNaN(num) && typeof (num) === 'number') {
+        let info = infos[num - 1];
+        sendAndLog({
+            obj: group,
+            mes: new Message().addPlain('第' + (num) + '场战斗\n').addPlain(info),
+        });
+    } else if (Array.isArray(infos)) {
+        for (let i = 0; i < infos.length; i++) {
+            const info = infos[i];
+            sendAndLog({
+                obj: group,
+                mes: new Message().addPlain('第' + (i + 1) + '场战斗\n').addPlain(info),
+            })
+        }
+    } else {
+        sendAndLog({
+            group,
+            message: new Message().addPlain('未知错误'),
+        })
+    }
+}
+
+function point(id, points){
+    id = parseInt(id);
+    points = parseInt(points);
+
+    let pointList = coc.showPoints();
+
+    if (!Number.isNaN(id) && typeof (id) === 'number'){
+
+        if (id > pointList.length) {
+            sendAndLog({
+                obj: group,
+                mes: new Message().addPlain('Out of range!'),
+            });
+        }
+        if (Number.isNaN(points) || typeof (points) !== 'number'){
+            sendAndLog({
+                obj: group,
+                mes: new Message().addPlain(id + '. ' + pointList[id].name + ': ' + pointList[id].point),
+            });
+        } else {
+            if (permission == Bot.groupPermission.MEMBER) {
+                sendAndLog({
+                    obj: group,
+                    mes: new Message().addPlain('您没有相关权限设置'),
+                });
+                return;
+            }
+            coc.addPoints(id, points);
+            sendAndLog({
+                obj: group,
+                mes: new Message().addPlain('积分设置完成'),
+            });
+        }
+    } else {
+        let messageArr = [];
+        pointList.forEach((mp, index) => {
+            let str = index + '. ' + mp.name + ': ' + mp.point;
+            messageArr.push(str);
+        });
+        sendAndLog({
+            obj: group,
+            mes: new Message().addPlain(messageArr.join('\n')),
+        })
+    }
+}
 start();

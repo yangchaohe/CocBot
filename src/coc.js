@@ -4,6 +4,9 @@ const { log4js } = require('./log4js');
 var log = log4js.getLogger('coc');
 const fs = require('fs');
 
+const {bootstrap} = require('global-agent');
+bootstrap();
+
 class Coc {
 	constructor() {
 		this.endTime;
@@ -254,11 +257,11 @@ class Coc {
 	}
 }
 
-// (async function(){
-// 	let coc = new Coc();
-// 	await coc.init();
-// 	await coc.initPoint('#2Y9GLJC0Y');
-// 	// console.log(coc.diffMembersInfo[0].attacks);
-// })();
-
-module.exports = { Coc };
+module.exports = {
+	cocF: async function(){
+		let coc = new Coc();
+		await coc.init();
+		await coc.initPoint('#2Y9GLJC0Y');
+		return coc;
+	}
+};

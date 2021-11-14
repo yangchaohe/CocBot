@@ -439,4 +439,5 @@ function point(id, points){
         })
     }
 }
+
 start();

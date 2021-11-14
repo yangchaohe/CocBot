@@ -1,4 +1,6 @@
-/.history
+.history
 /node_modules
 /yarn-error.log
 /log
+/league/.history
+

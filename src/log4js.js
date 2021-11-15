@@ -2,7 +2,7 @@ var log4js = require('log4js');
 
 log4js.configure({
 	appenders: {
-		std: {type: 'stdout', level: 'all', layout: {type: 'colored'} },
+		std: {type: 'stdout', level: 'info,error', layout: {type: 'colored'} },
 		file: {type: 'file', filename: 'log/log.txt', encoding: 'utf-8'}
 	},
 	categories: {

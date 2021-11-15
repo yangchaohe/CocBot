@@ -4,28 +4,51 @@ const { log4js } = require('./log4js');
 var log = log4js.getLogger('coc');
 const fs = require('fs');
 
-const {bootstrap} = require('global-agent');
-bootstrap();
+// const {bootstrap} = require('global-agent');
+// bootstrap();
 
 class Coc {
-	constructor() {
-		this.endTime;
+	constructor(clanTag) {
+		this.clanTag = clanTag; // string
+
+		this.warExists = false;
+		this.leagueExists = false;
+
+		this.warData;
+		this.leagueData;
+
+		this.warEndTime; // Date()
 		this.noAttackMembers;
 		this.inWarMembersInfo = [];
 		this.diffMembersInfo = [];
 		this.memberPointList = JSON.parse(fs.readFileSync('/home/manu/QQ-rebot/mcl/clashOfClans/resources/point.json', 'utf-8').toString())
 	}
+
 	async init() {
 		this.client = new Client();
 		await this.client.init({ email: 'manu2x@qq.com', password: 'Yy123456' });
+		await this.sync();
+		setInterval(this.sync, 5 * 60 * 1000);
 	}
-	async getClanWarState(clanTag) {
-		let data = await this.client.currentClanWar(clanTag);
-		if (data.state == 'notInWar') {
-			return false;
+
+	async sync() {
+		this.warData = await this.client.currentClanWar(this.clanTag)
+		if (this.warData.state != 'notInWar') {
+			this.warExists = true;
 		}
-		return this.getWarState(data);
+		this.leagueData = await this.client.currentClanWar(this.clanTag)
+		if (this.warData.state != 'notInWar') {
+			this.warExists = true;
+		}
 	}
+
+	async getClanWarState() {
+		if (warExists) {
+			return this.getWarState(warData);
+		}
+		return false;
+	}
+
 	getNoAttackMembers(clanWarMembers) {
 		let noAttackMembers = clanWarMembers.filter((mem) => {
 			if (!mem.attacks) {
@@ -39,10 +62,10 @@ class Coc {
 		return str.slice(0, str.length - 1);
 	}
 
-	async getClanWarLeagueState(clanTag) {
+	async getClanWarLeagueState() {
 		let CWL;
 		do {
-			CWL = await this.client.clanWarLeague(clanTag);
+			CWL = await this.client.clanWarLeague(this.clanTag);
 			log.debug('CWL: ', JSON.stringify(CWL).toString());
 		} while (CWL.ok === false);
 		if (CWL.state == 'notInWar') {
@@ -50,7 +73,7 @@ class Coc {
 		}
 		// data.clans: 参赛部落
 		// data.rounds：比赛tag
-		let state = await this.getRoundClanState(CWL.rounds, clanTag);
+		let state = await this.getRoundClanState(CWL.rounds, this.clanTag);
 		return state;
 	}
 
@@ -62,7 +85,7 @@ class Coc {
 	 * @param {*} clanTag
 	 * @returns
 	 */
-	async getRoundClanState(rounds, clanTag) {
+	async getRoundClanState(rounds) {
 		if (rounds === undefined) {
 			log.debug('round is undefined');
 		}
@@ -83,10 +106,10 @@ class Coc {
 					log.debug('round %d -> warData %d：%s', i, j, JSON.stringify(war).toString())
 				} while (war.ok === false)
 				if (war.state == 'notInWar') { continue; }
-				if (war.clan.tag == clanTag) {
+				if (war.clan.tag == this.clanTag) {
 					state.push(that.getWarState(war));
 				}
-				if (war.opponent.tag == clanTag) {
+				if (war.opponent.tag == this.clanTag) {
 					state.push(that.getWarOpponentState(war));
 				}
 			}
@@ -123,7 +146,7 @@ class Coc {
 	warBaseInfo(data) {
 		log.debug('解析部落基本信息，传入参数为：%s', JSON.stringify(data).toString());
 		if (data.state == 'inWar') {
-			this.endTime = this.parseDate(data.endTime);
+			this.warEndTime = this.parseDate(data.endTime);
 		}
 		return '----- 基础信息 ------' + '\n'
 			+ '状态：' + this.stateCN(data.state) + '\n'
@@ -205,8 +228,8 @@ class Coc {
 		});
 	}
 
-	async initPoint(clanTag) {
-		let member_list = (await this.client.clanMembers(clanTag)).items;
+	async initPoint() {
+		let member_list = (await this.client.clanMembers(this.clanTag)).items;
 		let write_data = [];
 		member_list.forEach((member) => {
 			let name = member.name;
@@ -227,9 +250,11 @@ class Coc {
 		fs.writeFileSync('/home/manu/QQ-rebot/mcl/clashOfClans/resources/point.json', JSON.stringify(this.memberPointList));
 		return true;
 	}
+
 	showPoints() {
 		return this.memberPointList;
 	}
+
 	/**
 	 * @param x {Object} 对象1
 	 * @param y {Object} 对象2
@@ -257,11 +282,4 @@ class Coc {
 	}
 }
 
-module.exports = {
-	cocF: async function(){
-		let coc = new Coc();
-		await coc.init();
-		await coc.initPoint('#2Y9GLJC0Y');
-		return coc;
-	}
-};
+module.exports = { Coc };

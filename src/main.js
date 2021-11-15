@@ -7,7 +7,8 @@ const layout = new Layout();
 const fs = require('fs');
 const axios = require('axios');
 const url = require('url');
-const { cocF } = require('./coc');
+const { Coc } = require('./coc');
+const coc = new Coc('2Y9GLJC0Y');
 const { parseString } = require('xml2js');
 
 let leagueState;
@@ -27,15 +28,14 @@ async function init() {
     let coc;
     do {
         log.info('加载 coc 插件');
-        // await coc.init()
-        //     .then(() => {
-        //         log.info('coc 插件加载成功');
-        //         flag = false;
-        //     })
-        //     .catch(() => {
-        //         log.error('载入 coc 插件失败，待重试');
-        //     });
-        coc = await cocF();
+        await coc.init()
+            .then(() => {
+                log.info('coc 插件加载成功');
+                flag = false;
+            })
+            .catch(() => {
+                log.error('载入 coc 插件失败，待重试');
+            });
     } while (flag);
     log.info('初始化完毕');
     syncCoc();
@@ -439,4 +439,5 @@ function point(id, points){
         })
     }
 }
+
 start();

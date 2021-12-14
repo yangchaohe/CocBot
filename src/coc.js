@@ -43,57 +43,35 @@ class Coc {
 	}
 
 	/**
-	 * TODO:初始化战争、联赛详细信息
+	 * 初始化战争、联赛详细信息
 	 */
 	async _warInit() {
-		this._clanWarData = await this.client.currentClanWar(this._clanTag)
-		if (this._clanWarData.state != 'notInWar') {
-			this._warExists = true;
+		// clan war
+		this._clanWarData = await this.client.currentClanWar(this._clanTag);
+		if (this._clanWarData.state != 'notInWar' && this._clanWarData.state != 'warEnded') {
+			this._clanWarExists = true;
+			this._setClanWarInfo();
 		}
-		this._leagueData = await this.client.currentClanWar(this._clanTag)
-		if (this._clanWarData.state != 'notInWar') {
-			this._warExists = true;
+		// league
+		let CWL;
+		// do: 防止网络原因造成 CWL 没有数据
+		do {
+			CWL = await this.client.clanWarLeague(this._clanTag);
+			log.debug('CWL: ', JSON.stringify(CWL).toString());
+			if (CWL.statusCode === 404) break;
+		} while (CWL.ok === false);
+		if (CWL.state != 'notInWar' && CWL.statusCode != 404) {
+			this._leagueExists = true;
+			await this._setLeagueData(CWL);
 		}
 	}
+
 
 	/**
 	 * **部落战** 信息
 	 */
-	setClanWarStateCN() {
-	    this.clanWarInfo = this.getWarInfo(this._clanWarData);
-	}
-
-	/**
-	 * 将 this._noAttackMembers 转换为
-	 * 1. member1
-	 * 2. member2
-	 */
-	_setNoAttackMembersInfo(clanWarMembers) {
-		this._noAttackMembers = clanWarMembers.filter((mem) => {
-			if (!mem.attacks) {
-				return true;
-			}
-		});
-		let str = '';
-		this._noAttackMembers.forEach(mem, i => {
-			str += (i + 1) + '. '+ mem.name + '\n';
-		});
-		this.noAttackMembersInfo = str.slice(0, str.length - 1);
-	}
-
-	/**
-	 * 本月所有的联赛信息
-	 *
-	 */
-	_setLeagueInfo() {
-		this._leagueData.forEach(league => {
-			if (league.clan.tag == this._clanTag) {
-				this.leagueInfo.push(this._getWarInfo(league));
-			}
-			if (league.opponent.tag == this._clanTag) {
-				this.leagueInfo.push(this._getWarOpponentInfo(league));
-			}
-		})
+	_setClanWarInfo() {
+	    this.clanWarInfo = this._getWarInfo(this._clanWarData);
 	}
 
 	// 部落的联赛机制是先生成8场数据，4场战斗中，4场备战，都有自己的tag
@@ -101,20 +79,10 @@ class Coc {
 
 	/**
 	 * 联赛 数据
+	 * @param {object} CWL
 	 */
-	async _setLeagueData() {
-		let CWL;
+	async _setLeagueData(CWL) {
 		let rounds;
-
-		do {
-			CWL = await this.client.clanWarLeague(this._clanTag);
-			log.debug('CWL: ', JSON.stringify(CWL).toString());
-		} while (CWL.ok === false);
-
-		if (CWL.state == 'notInWar') {
-			return false;
-		}
-
 		rounds = CWL.rounds;
 
 		if (rounds === undefined) {
@@ -126,6 +94,7 @@ class Coc {
 
 		var that = this;
 
+		// foreach 与 async 冲突
 		for (let i = 0; i < rounds.length; i++) {
 			const round = rounds[i];
 			for (let j = 0; j < round.warTags.length; j++) {
@@ -144,6 +113,37 @@ class Coc {
 				this._leagueData.push(war);
 			}
 		}
+
+		this._leagueData.forEach(league => {
+			if (league.clan.tag == this._clanTag) {
+				this.leagueInfo.push(this._getWarInfo(league));
+			}
+			if (league.opponent.tag == this._clanTag) {
+				this.leagueInfo.push(this._getWarOpponentInfo(league));
+			}
+		})
+	}
+
+	/**
+	 * 将 this._noAttackMembers 转换为
+	 * 1. member1
+	 * 2. member2
+	 *
+	 * @param {array} clanWarMembers
+	 */
+	_setNoAttackMembersData(clanWarMembers) {
+		log.debug('clanWarMembers: %s', clanWarMembers);
+		this._noAttackMembers = clanWarMembers.filter((mem) => {
+			if (!mem.attacks) {
+				return true;
+			}
+		});
+		let str = '';
+		this._noAttackMembers.sort((a, b) => a.mapPosition - b.mapPosition);
+		this._noAttackMembers.forEach((mem, i) => {
+			str += `${i+1}. ${mem.name} (${mem.townhallLevel}本)\n`;
+		});
+		this.noAttackMembersInfo = str.slice(0, str.length - 1);
 	}
 
 	stateCN(state) {
@@ -174,7 +174,7 @@ class Coc {
 
 	_warBaseInfo(data) {
 		log.debug('解析部落基本信息，传入参数为：%s', JSON.stringify(data).toString());
-		if (data.state == 'inWar') {
+		if (data.state != 'notInWar') {
 			this._warEndTime = this.parseDate(data.endTime);
 		}
 		return '----- 基础信息 ------' + '\n'
@@ -186,11 +186,14 @@ class Coc {
 	}
 
 	_warInfo(data) {
-		if (data.state == 'inWar') {
-			this._setNoAttackMembersInfo(data.clan.members);
-			this._diffWarMember(data.clan.members);
+		if (data.state != 'notInWar') {
 			this._inWarMembers = data.clan.members;
-			this._setNoAttackMembersInfo()
+			this._setNoAttackMembersData(data.clan.members);
+			this._diffWarMember(data.clan.members);
+		}
+		if (data.state == 'preparation') {
+			return '----- 我方数据 ------' + '\n'
+				+ '参与成员：' + this.noAttackMembersInfo + '\n'
 		}
 		return '----- 我方数据 ------' + '\n'
 			+ '进攻次数🗡️：' + data.clan.attacks + '\n'
@@ -204,10 +207,14 @@ class Coc {
 	}
 
 	_warOpponentInfo(data){
-		if (data.state == 'inWar') {
-			this._setNoAttackMembersInfo(data.opponent.members);
-			this._diffWarMember(data.opponent.members);
+		if (data.state != 'notInWar') {
 			this._inWarMembers = data.opponent.members;
+			this._setNoAttackMembersData(data.opponent.members);
+			this._diffWarMember(data.opponent.members);
+		}
+		if (data.state == 'preparation') {
+			return '----- 我方数据 ------' + '\n'
+				+ '参与成员：' + this.noAttackMembersInfo + '\n'
 		}
 		return '----- 我方数据 ------' + '\n'
 			+ '进攻次数🗡️：' + data.opponent.attacks + '\n'
@@ -307,4 +314,8 @@ class Coc {
 	}
 }
 
+// (async function() {
+// 	const a = new Coc('2Y9GLJC0Y');
+// 	a.init();
+// })();
 module.exports = { Coc };

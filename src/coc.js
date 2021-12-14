@@ -8,90 +8,124 @@ const fs = require('fs');
 // bootstrap();
 
 class Coc {
+
+	// war info
+	_clanWarExists = false;
+	_leagueExists = false;
+
+	_clanWarData;
+	_leagueData;
+
+	_warEndTime;
+	_noAttackMembers = [];
+	_inWarMembers = [];
+	_diffMembers = [];
+
+	clanWarInfo = '';
+	leagueInfo = [];
+	noAttackMembersInfo = '';
+
+	// point info
+	_memberPoints = JSON.parse(fs.readFileSync('/home/manu/QQ-rebot/mcl/clashOfClans/resources/point.json', 'utf-8').toString())
+
 	constructor(clanTag) {
-		this.clanTag = clanTag; // string
-
-		this.warExists = false;
-		this.leagueExists = false;
-
-		this.warData;
-		this.leagueData;
-
-		this.warEndTime; // Date()
-		this.noAttackMembers;
-		this.inWarMembersInfo = [];
-		this.diffMembersInfo = [];
-		this.memberPointList = JSON.parse(fs.readFileSync('/home/manu/QQ-rebot/mcl/clashOfClans/resources/point.json', 'utf-8').toString())
+		this._clanTag = clanTag;
 	}
 
+	/**
+	 * 初始化部落信息
+	 */
 	async init() {
 		this.client = new Client();
 		await this.client.init({ email: 'manu2x@qq.com', password: 'Yy123456' });
-		await this.sync();
-		setInterval(this.sync, 5 * 60 * 1000);
+		await this._warInit();
+		setInterval(this._warInit, 5 * 60 * 1000);
 	}
 
-	async sync() {
-		this.warData = await this.client.currentClanWar(this.clanTag)
-		if (this.warData.state != 'notInWar') {
-			this.warExists = true;
+	/**
+	 * TODO:初始化战争、联赛详细信息
+	 */
+	async _warInit() {
+		this._clanWarData = await this.client.currentClanWar(this._clanTag)
+		if (this._clanWarData.state != 'notInWar') {
+			this._warExists = true;
 		}
-		this.leagueData = await this.client.currentClanWar(this.clanTag)
-		if (this.warData.state != 'notInWar') {
-			this.warExists = true;
+		this._leagueData = await this.client.currentClanWar(this._clanTag)
+		if (this._clanWarData.state != 'notInWar') {
+			this._warExists = true;
 		}
 	}
 
-	async getClanWarState() {
-		if (warExists) {
-			return this.getWarState(warData);
-		}
-		return false;
+	/**
+	 * **部落战** 信息
+	 */
+	setClanWarStateCN() {
+	    this.clanWarInfo = this.getWarInfo(this._clanWarData);
 	}
 
-	getNoAttackMembers(clanWarMembers) {
-		let noAttackMembers = clanWarMembers.filter((mem) => {
+	/**
+	 * 将 this._noAttackMembers 转换为
+	 * 1. member1
+	 * 2. member2
+	 */
+	_setNoAttackMembersInfo(clanWarMembers) {
+		this._noAttackMembers = clanWarMembers.filter((mem) => {
 			if (!mem.attacks) {
 				return true;
 			}
 		});
 		let str = '';
-		noAttackMembers.forEach(mem => {
-			str += mem.name + ',';
+		this._noAttackMembers.forEach(mem, i => {
+			str += (i + 1) + '. '+ mem.name + '\n';
 		});
-		return str.slice(0, str.length - 1);
+		this.noAttackMembersInfo = str.slice(0, str.length - 1);
 	}
 
-	async getClanWarLeagueState() {
-		let CWL;
-		do {
-			CWL = await this.client.clanWarLeague(this.clanTag);
-			log.debug('CWL: ', JSON.stringify(CWL).toString());
-		} while (CWL.ok === false);
-		if (CWL.state == 'notInWar') {
-			return false;
-		}
-		// data.clans: 参赛部落
-		// data.rounds：比赛tag
-		let state = await this.getRoundClanState(CWL.rounds, this.clanTag);
-		return state;
+	/**
+	 * 本月所有的联赛信息
+	 *
+	 */
+	_setLeagueInfo() {
+		this._leagueData.forEach(league => {
+			if (league.clan.tag == this._clanTag) {
+				this.leagueInfo.push(this._getWarInfo(league));
+			}
+			if (league.opponent.tag == this._clanTag) {
+				this.leagueInfo.push(this._getWarOpponentInfo(league));
+			}
+		})
 	}
 
 	// 部落的联赛机制是先生成8场数据，4场战斗中，4场备战，都有自己的tag
 	// 这 8 场数据可以使用 clanTag 获取，战斗数据只能通过 warTag 获取
+
 	/**
-	 * 从 rounds 里找到关于 clanTag 的数据
-	 * @param {*} rounds
-	 * @param {*} clanTag
-	 * @returns
+	 * 联赛 数据
 	 */
-	async getRoundClanState(rounds) {
+	async _setLeagueData() {
+		let CWL;
+		let rounds;
+
+		do {
+			CWL = await this.client.clanWarLeague(this._clanTag);
+			log.debug('CWL: ', JSON.stringify(CWL).toString());
+		} while (CWL.ok === false);
+
+		if (CWL.state == 'notInWar') {
+			return false;
+		}
+
+		rounds = CWL.rounds;
+
 		if (rounds === undefined) {
 			log.debug('round is undefined');
+			return;
 		}
-		log.debug('round：', JSON.stringify(rounds).toString())
+
+		log.debug('round：', JSON.stringify(rounds).toString());
+
 		var that = this;
-		var state = [];
+
 		for (let i = 0; i < rounds.length; i++) {
 			const round = rounds[i];
 			for (let j = 0; j < round.warTags.length; j++) {
@@ -106,15 +140,10 @@ class Coc {
 					log.debug('round %d -> warData %d：%s', i, j, JSON.stringify(war).toString())
 				} while (war.ok === false)
 				if (war.state == 'notInWar') { continue; }
-				if (war.clan.tag == this.clanTag) {
-					state.push(that.getWarState(war));
-				}
-				if (war.opponent.tag == this.clanTag) {
-					state.push(that.getWarOpponentState(war));
-				}
+
+				this._leagueData.push(war);
 			}
 		}
-		return state;
 	}
 
 	stateCN(state) {
@@ -135,18 +164,18 @@ class Coc {
 		return state;
 	}
 
-	getWarState(data) {
-		return this.warBaseInfo(data) + this.warInfo(data);
+	_getWarInfo(data) {
+		return this._warBaseInfo(data) + this._warInfo(data);
 	}
 
-	getWarOpponentState(data) {
-		return this.warBaseInfo(data) + this.warInfo(data, true);
+	_getWarOpponentInfo(data) {
+		return this._warBaseInfo(data) + this._warOpponentInfo(data);
 	}
 
-	warBaseInfo(data) {
+	_warBaseInfo(data) {
 		log.debug('解析部落基本信息，传入参数为：%s', JSON.stringify(data).toString());
 		if (data.state == 'inWar') {
-			this.warEndTime = this.parseDate(data.endTime);
+			this._warEndTime = this.parseDate(data.endTime);
 		}
 		return '----- 基础信息 ------' + '\n'
 			+ '状态：' + this.stateCN(data.state) + '\n'
@@ -156,38 +185,39 @@ class Coc {
 			+ '结束时间：' + this.parseDate(data.endTime).toLocaleString() + '\n'
 	}
 
-	warInfo(data, isOpponent) {
-		if (isOpponent == true) {
-			if (data.state == 'inWar') {
-				this.noAttackMembers = this.getNoAttackMembers(data.opponent.members);
-				this.diffWarMember(data.opponent.members);
-				this.inWarMembersInfo = data.opponent.members;
-			}
-			return '----- 我方数据 ------' + '\n'
-				+ '进攻次数🗡️：' + data.opponent.attacks + '\n'
-				+ '星数🌟：' + data.opponent.stars + '\n'
-				+ '摧毁百分比：' + data.opponent.destructionPercentage + '%\n'
-				+ '未进攻的成员：' + this.getNoAttackMembers(data.opponent.members) + '\n'
-				+ '----- 敌方数据 ------' + '\n'
-				+ '进攻次数🗡️：' + data.clan.attacks + '\n'
-				+ '星数🌟：' + data.clan.stars + '\n'
-				+ '摧毁百分比：' + data.clan.destructionPercentage + '%'
-		} else {
-			if (data.state == 'inWar') {
-				this.noAttackMembers = this.getNoAttackMembers(data.clan.members);
-				this.diffWarMember(data.clan.members);
-				this.inWarMembersInfo = data.clan.members;
-			}
-			return '----- 我方数据 ------' + '\n'
-				+ '进攻次数🗡️：' + data.clan.attacks + '\n'
-				+ '星数🌟：' + data.clan.stars + '\n'
-				+ '摧毁百分比：' + data.clan.destructionPercentage + '%\n'
-				+ '未进攻的成员：' + this.getNoAttackMembers(data.clan.members) + '\n'
-				+ '----- 敌方数据 ------' + '\n'
-				+ '进攻次数🗡️：' + data.opponent.attacks + '\n'
-				+ '星数🌟：' + data.opponent.stars + '\n'
-				+ '摧毁百分比：' + data.opponent.destructionPercentage + '%'
+	_warInfo(data) {
+		if (data.state == 'inWar') {
+			this._setNoAttackMembersInfo(data.clan.members);
+			this._diffWarMember(data.clan.members);
+			this._inWarMembers = data.clan.members;
+			this._setNoAttackMembersInfo()
 		}
+		return '----- 我方数据 ------' + '\n'
+			+ '进攻次数🗡️：' + data.clan.attacks + '\n'
+			+ '星数🌟：' + data.clan.stars + '\n'
+			+ '摧毁百分比：' + data.clan.destructionPercentage + '%\n'
+			+ '未进攻的成员：' + this.noAttackMembersInfo + '\n'
+			+ '----- 敌方数据 ------' + '\n'
+			+ '进攻次数🗡️：' + data.opponent.attacks + '\n'
+			+ '星数🌟：' + data.opponent.stars + '\n'
+			+ '摧毁百分比：' + data.opponent.destructionPercentage + '%';
+	}
+
+	_warOpponentInfo(data){
+		if (data.state == 'inWar') {
+			this._setNoAttackMembersInfo(data.opponent.members);
+			this._diffWarMember(data.opponent.members);
+			this._inWarMembers = data.opponent.members;
+		}
+		return '----- 我方数据 ------' + '\n'
+			+ '进攻次数🗡️：' + data.opponent.attacks + '\n'
+			+ '星数🌟：' + data.opponent.stars + '\n'
+			+ '摧毁百分比：' + data.opponent.destructionPercentage + '%\n'
+			+ '未进攻的成员：' + this.noAttackMembersInfo + '\n'
+			+ '----- 敌方数据 ------' + '\n'
+			+ '进攻次数🗡️：' + data.clan.attacks + '\n'
+			+ '星数🌟：' + data.clan.stars + '\n'
+			+ '摧毁百分比：' + data.clan.destructionPercentage + '%';
 	}
 
 	parseDate(str) {
@@ -205,14 +235,14 @@ class Coc {
 		return new Date(Date.parse(date.join('-') + time.join(':') + area));
 	}
 
-	diffWarMember(currentWarMembers) {
-		if (this.inWarMembersInfo.length === 0) {
+	_diffWarMember(currentWarMembers) {
+		if (this._inWarMembers.length === 0) {
 			return;
 		}
 		currentWarMembers.forEach((newMember, i) => {
-			log.debug('旧成员数据：%s', JSON.stringify(this.inWarMembersInfo[i]).toString());
+			log.debug('旧成员数据：%s', JSON.stringify(this._inWarMembers[i]).toString());
 			log.debug('新成员数据：%s', JSON.stringify(newMember).toString());
-			let diffData = diff(this.inWarMembersInfo[i], newMember);
+			let diffData = diff(this._inWarMembers[i], newMember);
 			log.debug('diff成员数据：%s', JSON.stringify(diffData).toString());
 			if (diffData.changed === 'equal') {
 				return;
@@ -220,7 +250,7 @@ class Coc {
 			if (diffData.value.attacks != undefined) {
 				if (diffData.value.attacks.changed != 'equal') {
 					diffData.value.attacks.value.forEach((e) => {
-						this.diffMembersInfo.push({ name: newMember.name, attacks: e });
+						this._diffMembers.push({ name: newMember.name, attacks: e });
 					})
 				}
 				return;
@@ -229,7 +259,7 @@ class Coc {
 	}
 
 	async initPoint() {
-		let member_list = (await this.client.clanMembers(this.clanTag)).items;
+		let member_list = (await this.client.clanMembers(this._clanTag)).items;
 		let write_data = [];
 		member_list.forEach((member) => {
 			let name = member.name;
@@ -241,18 +271,13 @@ class Coc {
 	}
 
 	addPoints(id, points) {
-		// this.memberPointList.forEach(mp => {
-		// 	if (mp.tag === mamberTag){
-		// 		mp.point += points;
-		// 	}
-		// })
-		this.memberPointList[id].point += points;
-		fs.writeFileSync('/home/manu/QQ-rebot/mcl/clashOfClans/resources/point.json', JSON.stringify(this.memberPointList));
+		this._memberPoints[id].point += points;
+		fs.writeFileSync('/home/manu/QQ-rebot/mcl/clashOfClans/resources/point.json', JSON.stringify(this._memberPoints));
 		return true;
 	}
 
 	showPoints() {
-		return this.memberPointList;
+		return this._memberPoints;
 	}
 
 	/**

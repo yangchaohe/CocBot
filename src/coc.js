@@ -24,8 +24,8 @@ const fs = require('fs');
 class Coc {
 
 	// war info
-	_clanWarExists = false;
-	_leagueExists = false;
+	clanWarExists = false;
+	leagueExists = false;
 
 	_clanWarData;
 	_leagueData;
@@ -63,7 +63,7 @@ class Coc {
 		// clan war
 		this._clanWarData = await this.client.currentClanWar(this._clanTag);
 		if (this._clanWarData.state != 'notInWar' && this._clanWarData.state != 'warEnded') {
-			this._clanWarExists = true;
+			this.clanWarExists = true;
 			this._setClanWarInfo();
 		}
 		// league
@@ -75,7 +75,7 @@ class Coc {
 			if (CWL.statusCode === 404) break;
 		} while (CWL.ok === false);
 		if (CWL.state != 'notInWar' && CWL.statusCode != 404) {
-			this._leagueExists = true;
+			this.leagueExists = true;
 			await this._setLeagueData(CWL);
 		}
 	}

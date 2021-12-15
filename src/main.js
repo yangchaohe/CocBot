@@ -356,20 +356,16 @@ async function uploadLayout(level, waitFor) {
 }
 
 async function war(group){
-    let info;
-    if (warState == undefined) {
+    if (!coc.clanWarExists) {
         sendAndLog({
             obj: group,
-            mes: new Message().addPlain('正在为您查询中，请稍等'),
+            mes: new Message().addPlain('当前没有开启部落战'),
         });
-        info = await coc.getClanWarState('#2Y9GLJC0Y');
-        warState = info;
-    } else {
-        info = warState;
+        return;
     }
     sendAndLog({
         obj: group,
-        mes: new Message().addPlain(info),
+        mes: new Message().addPlain(coc.clanWarInfo),
     });
 }
 

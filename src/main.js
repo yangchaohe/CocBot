@@ -1,15 +1,26 @@
 const { Bot, Message, Middleware } = require('mirai-js');
 const bot = new Bot();
+
 const { log4js } = require('./log4js');
 var log = log4js.getLogger('coc');
+
 const { Layout } = require('./layout');
 const layout = new Layout();
+
 const fs = require('fs');
 const axios = require('axios');
 const url = require('url');
+const { parseString } = require('xml2js');
+
 const { Coc } = require('./coc');
 const coc = new Coc('2Y9GLJC0Y');
-const { parseString } = require('xml2js');
+
+const commander = require('commander'); // include commander in git clone of commander repo
+const cmd = new commander.Command();
+cmd.version('0.0.1');
+
+cmd.name('coc');
+cmd.exitOverride();
 
 let leagueState;
 let warState;
@@ -20,13 +31,12 @@ async function init() {
     log.info('开始初始化');
     log.info('接入 maria qq api ...');
     await bot.open({
-        baseUrl: 'http://192.168.0.24:7000',
+        baseUrl: 'http://127.0.0.1:7000',
         verifyKey: 'yangchaohe',
         qq: 2646377197,
     })
     log.info('接入 maria qq api 成功');
     let flag = true;
-    let coc;
     do {
         log.info('加载 coc 插件 ...');
         await coc.init()
@@ -34,14 +44,15 @@ async function init() {
                 log.info('coc 插件加载成功, 部落数据加载完毕');
                 flag = false;
             })
-            .catch(() => {
-                log.error('载入 coc 插件失败，重试中 ...');
+            .catch((e) => {
+                log.error('载入 coc 插件失败，原因：%s', e);
             });
     } while (flag);
     log.info('初始化完毕');
-    syncCoc();
-    setInterval(syncCoc, 5 * 60 * 1000);
-    checkWarTime = setInterval(warAttackWarn, 60 * 60 * 1000);
+    cocLog();
+    setInterval(coc._warInit, 5 * 60 * 1000);
+    setInterval(cocLog, 5 * 60 * 1000);
+    checkWarTime = setInterval(warWarn, 60 * 60 * 1000);
 }
 
 async function start() {
@@ -51,15 +62,35 @@ async function start() {
         new Middleware()
             .textProcessor()
             .done(async ({ text, sender: { permission: permission, group: { id: group } } }) => {
-                if (text.includes('/coc 阵型')) {
+                if (text.startsWith('co')) {
+                    let cmd_arr = text.split(' ');
+                    cmd_arr.unshift('node');
+                    log.debug('cmd_arr: %s', JSON.stringify(cmd_arr));
+                    cmd
+                        .command('lay')
+                        .argument('<level>', '[数字] 大本等级', myParseInt, 12)
+                        .argument('[limit]', '[数字] 数量', myParseInt, 1)
+                        .description('获取一个大本的阵型图和链接')
+                        .action(layout_);
+
+                    cmd
+                        .command('war')
+                        .description('获取部落战信息')
+                        .action(war(group));
+
+                    try {
+                        cmd.parse(cmd_arr);
+                    } catch (error) {
+                        console.log(coc.helpInformation());
+                    }
                 }
-                if (text.includes('/coc 部落战')) {
+                if (text.startsWith('/coc 部落战')) {
                 }
-                if (text.includes('/coc 联赛')) {
+                if (text.startsWith('/coc 联赛')) {
                 }
-                if (text.includes('/coc 积分')) {
+                if (text.startsWith('/coc 积分')) {
                 }
-                if (text.includes('/coc help')) {
+                if (text.startsWith('/coc help')) {
                     let message;
                     message = '/coc 阵型 <大本等级> [limit]\n'+
                             '/coc 上传阵型 <大本等级>\n'+
@@ -146,13 +177,13 @@ const download_image = (url, image_path) =>
             }),
     );
 
-async function syncCoc() {
+async function cocLog() {
     log.debug('启用战争数据日志、提醒');
-    warAttackLog();
-    warAttackWarn();
+    warLog();
+    warWarn();
 }
 
-function warAttackWarn() {
+function warWarn() {
     if (!coc.clanWarExists) return;
     if (!coc.leagueExists) return;
     if (coc.warEndTime !== undefined && coc.warEndTime > new Date()) {
@@ -190,10 +221,10 @@ function warAttackWarn() {
     }
 }
 
-function warAttackLog() {
-    if (coc.diffMembersInfo.length !== 0) {
-        log.debug(coc.diffMembersInfo);
-        coc.diffMembersInfo.forEach((member, i) => {
+function warLog() {
+    log.debug(coc.diffMembers);
+    if (coc.diffMembers !== undefined && coc.diffMembers.length !== 0) {
+        coc.diffMembers.forEach((member, i) => {
             log.debug(member);
             member.attacks.forEach((attacks) => {
                 log.debug(attacks);
@@ -202,7 +233,7 @@ function warAttackLog() {
                     + '星🌟：' + attacks.stars + '\n'
                     + '进攻时间：' + attacks.duration + ' s' + '\n'
                     + '摧毁百分比：' + attacks.destructionPercentage + ' %';
-                coc.diffMembersInfo.splice(i, 1);
+                coc.diffMembers.splice(i, 1);
                 sendAndLog({
                     obj: 575291410,
                     mes: new Message().addPlain(message)
@@ -235,30 +266,16 @@ function diffTime(date1, date2) {
 }
 
 function layout_(level, limit) {
-    level = parseInt(level);
-    limit = parseInt(limit);
-    if (Number.isNaN(level) || typeof (level) !== 'number') {
-        sendAndLog({
-            obj: group,
-            mes: new Message().addPlain('指令错误! \n正确用法：「/coc 阵型 数字」'),
-        })
-        return;
-    }
     let message;
-    if (!Number.isNaN(limit) && typeof (limit) === 'number') {
-        lay = layout.getLayout(level, limit);
-        message = new Message();
-        log.debug(lay);
-        if (Array.isArray(lay) && lay.length === 0) {
-            message = message.addPlain('没有该数据！');
-        } else {
-            lay.forEach(e => {
-                message = message.addImagePath(e.imgPath).addPlain(e.link);
-            });
-        }
+    lay = layout.getLayout(level, limit);
+    message = new Message();
+    log.debug(lay);
+    if (Array.isArray(lay) && lay.length === 0) {
+        message = message.addPlain('没有该数据！');
     } else {
-        lay = layout.getRandom(level);
-        message = new Message().addImagePath(lay.imgPath).addPlain(lay.link);
+        lay.forEach(e => {
+            message = message.addImagePath(e.imgPath).addPlain(e.link);
+        });
     }
     sendAndLog({
         obj: group,
@@ -338,7 +355,7 @@ async function uploadLayout(level, waitFor) {
     });
 }
 
-async function war(){
+async function war(group){
     let info;
     if (warState == undefined) {
         sendAndLog({
@@ -436,5 +453,15 @@ function point(id, points){
         })
     }
 }
-
+function myParseInt(value, dummyPrevious) {
+    // parseInt takes a string and a radix
+    const parsedValue = parseInt(value, 10);
+    if (isNaN(parsedValue)) {
+        sendAndLog({
+            obj: 575291410,
+            mes: new Message().addPlain('Not a numer')
+        });
+    }
+    return parsedValue;
+}
 start();

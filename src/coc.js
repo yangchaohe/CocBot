@@ -40,7 +40,7 @@ class Coc {
 	noAttackMembersInfo = '';
 
 	// point info
-	_memberPoints = JSON.parse(fs.readFileSync('/home/manu/QQ-rebot/mcl/clashOfClans/resources/point.json', 'utf-8').toString())
+	_memberPoints = JSON.parse(fs.readFileSync('/home/admin/QQ_Bot/mcl/clashOfClans/resources/point.json', 'utf-8').toString())
 
 	constructor(clanTag) {
 		this._clanTag = clanTag;

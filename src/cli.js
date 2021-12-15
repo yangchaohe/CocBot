@@ -1,8 +1,8 @@
 const commander = require('commander'); // include commander in git clone of commander repo
-const cli = new commander.Command();
-cli.version('0.0.1');
+const coc = new commander.Command();
+coc.version('0.0.1');
 
-function parseInt(value, dummyPrevious) {
+function myParseInt(value, dummyPrevious) {
     // parseInt takes a string and a radix
     const parsedValue = parseInt(value, 10);
     if (isNaN(parsedValue)) {
@@ -23,24 +23,30 @@ function commaSeparatedList(value, dummyPrevious) {
     return value.split(',');
 }
 
-cli
-    .command('lay <level> [limit]')
-    .description('随机获取一个大本营等级的阵型图和链接，limit 是数量');
-cli
+coc.name('coc');
+coc
+    .command('lay')
+    .argument('[level]', '[数字] 大本等级', myParseInt, 12)
+    .argument('[limit]', '[数字] 数量', myParseInt, 1)
+    .description('获取一个大本的阵型图和链接')
+    .action(test);
+coc
     .option('-W, --War', '获取当前部落战信息');
-cli
+coc
     .command('league <num>')
     .description('获取当前部联赛信息, num = 场次');
 
-// cli.outputHelp({ error: true });
-cli.exitOverride();
+// coc.outputHelp({ error: true });
+coc.exitOverride();
 try {
-    cli.parse(process.argv);
+    coc.parse(process.argv);
 } catch (error) {
-    console.log(cli.helpInformation());
+    console.log(coc.helpInformation());
 }
 
-let l = cli.opts();
+let l = coc.opts();
 console.log(JSON.stringify(l));
 
 console.log('test');
+
+function test(level, limit){console.log('level: %d, limit: %d', level, limit)}

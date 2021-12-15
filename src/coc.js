@@ -4,8 +4,22 @@ const { log4js } = require('./log4js');
 var log = log4js.getLogger('coc');
 const fs = require('fs');
 
-// const {bootstrap} = require('global-agent');
-// bootstrap();
+// const proxy = require("node-global-proxy").default;
+// proxy.setConfig({
+//   http: "http://localhost:8888",
+//   https: "http://localhost:8888",
+// });
+// proxy.start();
+
+// var globalTunnel = require('global-tunnel-ng');
+
+// globalTunnel.initialize({
+//   connect: 'both',
+//   host: '127.0.0.1',
+//   port: 8888,
+//   proxyAuth: '', // optional authentication
+//   sockets: 1089 // optional pool size for each http and https
+// });
 
 class Coc {
 
@@ -19,7 +33,7 @@ class Coc {
 	_warEndTime;
 	_noAttackMembers = [];
 	_inWarMembers = [];
-	_diffMembers = [];
+	diffMembers = [];
 
 	clanWarInfo = '';
 	leagueInfo = [];
@@ -39,7 +53,7 @@ class Coc {
 		this.client = new Client();
 		await this.client.init({ email: 'manu2x@qq.com', password: 'Yy123456' });
 		await this._warInit();
-		setInterval(this._warInit, 5 * 60 * 1000);
+		// setInterval(this._warInit, 5 * 60 * 1000);
 	}
 
 	/**
@@ -257,7 +271,7 @@ class Coc {
 			if (diffData.value.attacks != undefined) {
 				if (diffData.value.attacks.changed != 'equal') {
 					diffData.value.attacks.value.forEach((e) => {
-						this._diffMembers.push({ name: newMember.name, attacks: e });
+						this.diffMembers.push({ name: newMember.name, attacks: e });
 					})
 				}
 				return;

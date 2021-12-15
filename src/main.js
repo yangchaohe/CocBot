@@ -50,13 +50,24 @@ async function init() {
     } while (flag);
     log.info('初始化完毕');
     cocLog();
-    setInterval(coc._warInit, 5 * 60 * 1000);
     setInterval(cocLog, 5 * 60 * 1000);
     checkWarTime = setInterval(warWarn, 60 * 60 * 1000);
 }
 
 async function start() {
     await init();
+
+    cmd
+    .command('lay')
+    .argument('[level]', '[数字] 大本等级', myParseInt, 12)
+    .argument('[limit]', '[数字] 数量', myParseInt, 1)
+    .description('获取一个大本的阵型图和链接')
+    .action(layout_);
+
+    cmd
+    .command('war')
+    .description('获取部落战信息')
+    .action(war);
 
     bot.on('GroupMessage',
         new Middleware()
@@ -66,22 +77,20 @@ async function start() {
                     let cmd_arr = text.split(' ');
                     cmd_arr.unshift('node');
                     log.debug('cmd_arr: %s', JSON.stringify(cmd_arr));
-                    cmd
-                        .command('lay')
-                        .argument('<level>', '[数字] 大本等级', myParseInt, 12)
-                        .argument('[limit]', '[数字] 数量', myParseInt, 1)
-                        .description('获取一个大本的阵型图和链接')
-                        .action(layout_);
-
-                    cmd
-                        .command('war')
-                        .description('获取部落战信息')
-                        .action(war(group));
-
                     try {
                         cmd.parse(cmd_arr);
                     } catch (error) {
-                        console.log(coc.helpInformation());
+                        log.debug('error: %s',error);
+                        let message;
+                        if (error.message == '(outputHelp)'){
+                            message = cmd.helpInformation();
+                        } else {
+                            message = error.massage;
+                        }
+                        sendAndLog({
+                            obj: 707075482,
+                            mes: new Message().addPlain(error.message)
+                        });
                     }
                 }
                 if (text.startsWith('/coc 部落战')) {
@@ -192,7 +201,7 @@ function warWarn() {
         if (hour <= 1) {
             clearInterval(checkWarTime);
             checkWarTime = setInterval(() => sendAndLog({
-                obj: 575291410,
+                obj: 707075482,
                 mes: new Message().addPlain('战争结束据今时间： ' + diffTime(coc.warEndTime, new Date()) + '\n' +
                     '未进攻成员：' + coc.noAttackMembersInfo)
             }), 5 * 60 * 1000)
@@ -201,7 +210,7 @@ function warWarn() {
         if (hour <= 2) {
             clearInterval(checkWarTime);
             checkWarTime = setInterval(() => sendAndLog({
-                obj: 575291410,
+                obj: 707075482,
                 mes: new Message().addPlain('战争结束据今时间： ' + diffTime(coc.warEndTime, new Date()) + '\n' +
                     '未进攻成员：' + coc.noAttackMembersInfo)
             }), 20 * 60 * 1000)
@@ -209,7 +218,7 @@ function warWarn() {
         }
         if (hour <= 5) {
             sendAndLog({
-                obj: 575291410,
+                obj: 707075482,
                 mes: new Message().addPlain('战争结束据今时间： ' + diffTime(coc.warEndTime, new Date()) + '\n' +
                     '未进攻成员：' + coc.noAttackMembersInfo)
             });
@@ -235,7 +244,7 @@ function warLog() {
                     + '摧毁百分比：' + attacks.destructionPercentage + ' %';
                 coc.diffMembers.splice(i, 1);
                 sendAndLog({
-                    obj: 575291410,
+                    obj: 707075482,
                     mes: new Message().addPlain(message)
                 })
             })
@@ -278,7 +287,7 @@ function layout_(level, limit) {
         });
     }
     sendAndLog({
-        obj: group,
+        obj: 707075482,
         mes: message,
     });
 }
@@ -355,16 +364,16 @@ async function uploadLayout(level, waitFor) {
     });
 }
 
-async function war(group){
+async function war(){
     if (!coc.clanWarExists) {
         sendAndLog({
-            obj: group,
+            obj: 707075482,
             mes: new Message().addPlain('当前没有开启部落战'),
         });
         return;
     }
     sendAndLog({
-        obj: group,
+        obj: 707075482,
         mes: new Message().addPlain(coc.clanWarInfo),
     });
 }
@@ -454,9 +463,10 @@ function myParseInt(value, dummyPrevious) {
     const parsedValue = parseInt(value, 10);
     if (isNaN(parsedValue)) {
         sendAndLog({
-            obj: 575291410,
+            obj: 707075482,
             mes: new Message().addPlain('Not a numer')
         });
+        return;
     }
     return parsedValue;
 }

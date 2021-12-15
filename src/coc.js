@@ -80,7 +80,6 @@ class Coc {
 		}
 	}
 
-
 	/**
 	 * **部落战** 信息
 	 */
@@ -213,7 +212,7 @@ class Coc {
 			+ '进攻次数🗡️：' + data.clan.attacks + '\n'
 			+ '星数🌟：' + data.clan.stars + '\n'
 			+ '摧毁百分比：' + data.clan.destructionPercentage + '%\n'
-			+ '未进攻的成员：' + this.noAttackMembersInfo + '\n'
+			+ '未进攻的成员：\n' + this.noAttackMembersInfo + '\n'
 			+ '----- 敌方数据 ------' + '\n'
 			+ '进攻次数🗡️：' + data.opponent.attacks + '\n'
 			+ '星数🌟：' + data.opponent.stars + '\n'
@@ -234,7 +233,7 @@ class Coc {
 			+ '进攻次数🗡️：' + data.opponent.attacks + '\n'
 			+ '星数🌟：' + data.opponent.stars + '\n'
 			+ '摧毁百分比：' + data.opponent.destructionPercentage + '%\n'
-			+ '未进攻的成员：' + this.noAttackMembersInfo + '\n'
+			+ '未进攻的成员：\n' + this.noAttackMembersInfo + '\n'
 			+ '----- 敌方数据 ------' + '\n'
 			+ '进攻次数🗡️：' + data.clan.attacks + '\n'
 			+ '星数🌟：' + data.clan.stars + '\n'

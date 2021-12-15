@@ -18,8 +18,9 @@ let checkWarTime;
 // 连接到一个 mirai-api-http 服务
 async function init() {
     log.info('开始初始化');
+    log.info('接入 maria qq api ...');
     await bot.open({
-        baseUrl: 'http://192.168.3.79:7000',
+        baseUrl: 'http://192.168.0.24:7000',
         verifyKey: 'yangchaohe',
         qq: 2646377197,
     })
@@ -27,14 +28,14 @@ async function init() {
     let flag = true;
     let coc;
     do {
-        log.info('加载 coc 插件');
+        log.info('加载 coc 插件 ...');
         await coc.init()
             .then(() => {
-                log.info('coc 插件加载成功');
+                log.info('coc 插件加载成功, 部落数据加载完毕');
                 flag = false;
             })
             .catch(() => {
-                log.error('载入 coc 插件失败，待重试');
+                log.error('载入 coc 插件失败，重试中 ...');
             });
     } while (flag);
     log.info('初始化完毕');
@@ -101,7 +102,7 @@ async function start() {
 }
 
 function isValidURL(url) {
-    var urlRegExp = /^((https|http|ftp|rtsp|mms)?:\/\/)+[A-Za-z0-9]+\.[A-Za-z0-9]+[\/=\?%\-&_~`@[\]\':+!]*([^<>\"\"])*$/;
+    var urlRegExp = /^((https|http|ftp|rtsp|mms)?:\/\/)+[A-Za-z0-9]+\.[A-Za-z0-9]+[\/=\?%\-&_~@[\]\':+!]*([^<>\"\"])*$/;
     if (urlRegExp.test(url)) {
         return true;
     } else {
@@ -146,27 +147,23 @@ const download_image = (url, image_path) =>
     );
 
 async function syncCoc() {
-    log.info('Update COC data...');
-    leagueState = await coc.getClanWarLeagueState('#2Y9GLJC0Y');
-    // warState = await coc.getClanWarState('#2Y9GLJC0Y');
-    log.info('Update COC data done');
     log.debug('启用战争数据日志、提醒');
     warAttackLog();
     warAttackWarn();
-    return;
 }
 
 function warAttackWarn() {
-    log.debug('计算战争时间..');
-    if (coc.endTime !== undefined && coc.endTime > new Date()) {
-        let hour = Math.floor((coc.endTime - new Date()) / (60 * 60 * 1000));
-        log.debug('剩余 %d h', hour);
+    if (!coc.clanWarExists) return;
+    if (!coc.leagueExists) return;
+    if (coc.warEndTime !== undefined && coc.warEndTime > new Date()) {
+        let hour = Math.floor((coc.warEndTime - new Date()) / (60 * 60 * 1000));
+        log.debug('计算战争时间..剩余 %d h', hour);
         if (hour <= 1) {
             clearInterval(checkWarTime);
             checkWarTime = setInterval(() => sendAndLog({
                 obj: 575291410,
-                mes: new Message().addPlain('战争结束据今时间： ' + diffTime(coc.endTime, new Date()) + '\n' +
-                    '未进攻成员：' + coc.noAttackMembers)
+                mes: new Message().addPlain('战争结束据今时间： ' + diffTime(coc.warEndTime, new Date()) + '\n' +
+                    '未进攻成员：' + coc.noAttackMembersInfo)
             }), 5 * 60 * 1000)
             return;
         }
@@ -174,16 +171,16 @@ function warAttackWarn() {
             clearInterval(checkWarTime);
             checkWarTime = setInterval(() => sendAndLog({
                 obj: 575291410,
-                mes: new Message().addPlain('战争结束据今时间： ' + diffTime(coc.endTime, new Date()) + '\n' +
-                    '未进攻成员：' + coc.noAttackMembers)
+                mes: new Message().addPlain('战争结束据今时间： ' + diffTime(coc.warEndTime, new Date()) + '\n' +
+                    '未进攻成员：' + coc.noAttackMembersInfo)
             }), 20 * 60 * 1000)
             return;
         }
         if (hour <= 5) {
             sendAndLog({
                 obj: 575291410,
-                mes: new Message().addPlain('战争结束据今时间： ' + diffTime(coc.endTime, new Date()) + '\n' +
-                    '未进攻成员：' + coc.noAttackMembers)
+                mes: new Message().addPlain('战争结束据今时间： ' + diffTime(coc.warEndTime, new Date()) + '\n' +
+                    '未进攻成员：' + coc.noAttackMembersInfo)
             });
             return;
         }

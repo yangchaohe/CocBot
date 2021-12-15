@@ -16,11 +16,11 @@ const { Coc } = require('./coc');
 const coc = new Coc('2Y9GLJC0Y');
 
 const commander = require('commander'); // include commander in git clone of commander repo
-const cmd = new commander.Command();
-cmd.version('0.0.1');
+const co = new commander.Command();
+co.version('0.0.1');
 
-cmd.name('coc');
-cmd.exitOverride();
+co.name('co');
+co.exitOverride();
 
 let leagueState;
 let warState;
@@ -57,40 +57,45 @@ async function init() {
 async function start() {
     await init();
 
-    cmd
+    co
     .command('lay')
     .argument('[level]', '[数字] 大本等级', myParseInt, 12)
     .argument('[limit]', '[数字] 数量', myParseInt, 1)
     .description('获取一个大本的阵型图和链接')
     .action(layout_);
 
-    cmd
+    co
     .command('war')
     .description('获取部落战信息')
     .action(war);
+
+    co
+    .configureOutput({
+    // 此处使输出变得容易区分
+    writeOut: (str) => sendAndLog({
+        obj: 707075482,
+        mes: new Message().addPlain(`${str}`)
+    }),
+    writeErr: (str) => sendAndLog({
+        obj: 707075482,
+        mes: new Message().addPlain(`${str}`)
+    }),
+    // 将错误高亮显示
+    // outputError: (str, write) => write(errorColor(str))
+    });
 
     bot.on('GroupMessage',
         new Middleware()
             .textProcessor()
             .done(async ({ text, sender: { permission: permission, group: { id: group } } }) => {
                 if (text.startsWith('co')) {
-                    let cmd_arr = text.split(' ');
-                    cmd_arr.unshift('node');
-                    log.debug('cmd_arr: %s', JSON.stringify(cmd_arr));
+                    let co_arr = text.split(' ');
+                    co_arr.unshift('node');
+                    log.debug('co_arr: %s', JSON.stringify(co_arr));
                     try {
-                        cmd.parse(cmd_arr);
+                        co.parse(co_arr);
                     } catch (error) {
-                        log.debug('error: %s',error);
-                        let message;
-                        if (error.message == '(outputHelp)'){
-                            message = cmd.helpInformation();
-                        } else {
-                            message = error.massage;
-                        }
-                        sendAndLog({
-                            obj: 707075482,
-                            mes: new Message().addPlain(error.message)
-                        });
+                        log.error('co_error: %s',error);
                     }
                 }
                 if (text.startsWith('/coc 部落战')) {
@@ -462,11 +467,11 @@ function myParseInt(value, dummyPrevious) {
     // parseInt takes a string and a radix
     const parsedValue = parseInt(value, 10);
     if (isNaN(parsedValue)) {
-        sendAndLog({
-            obj: 707075482,
-            mes: new Message().addPlain('Not a numer')
-        });
-        return;
+        // sendAndLog({
+        //     obj: 707075482,
+        //     mes: new Message().addPlain('Not a numer')
+        // });
+        throw new commander.InvalidArgumentError('Not a number.');
     }
     return parsedValue;
 }

@@ -28,6 +28,7 @@ coc
     .command('lay')
     .argument('[level]', '[数字] 大本等级', myParseInt, 12)
     .argument('[limit]', '[数字] 数量', myParseInt, 1)
+    .option('-i, --info', 'test')
     .description('获取一个大本的阵型图和链接')
     .action(test);
 coc

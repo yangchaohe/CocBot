@@ -35,12 +35,15 @@ class Coc {
 	_inWarMembers = [];
 	diffMembers = [];
 
+	_clanUpdateInterval;
+	_clanUpdateTime;
+
 	clanWarInfo = '';
 	leagueInfo = [];
 	noAttackMembersInfo = '';
 
 	// point info
-	_memberPoints = JSON.parse(fs.readFileSync('/home/manu/QQ-rebot/mcl/clashOfClans/resources/point.json', 'utf-8').toString())
+	_memberPoints = JSON.parse(fs.readFileSync('resources/point.json', 'utf-8').toString())
 
 	constructor(clanTag) {
 		this._clanTag = clanTag;
@@ -51,33 +54,35 @@ class Coc {
 	 */
 	async init() {
 		this.client = new Client();
+		let _this = this;
 		await this.client.init({ email: 'manu2x@qq.com', password: 'Yy123456' });
-		await this._warInit();
-		// setInterval(this._warInit, 5 * 60 * 1000);
+		await this._warInit(_this);
+		this._clanUpdateInterval = setInterval(this._warInit, 5 * 60 * 1000, _this);
 	}
 
 	/**
 	 * 初始化战争、联赛详细信息
 	 */
-	async _warInit() {
+	async _warInit(_this) {
 		// clan war
-		this._clanWarData = await this.client.currentClanWar(this._clanTag);
-		if (this._clanWarData.state != 'notInWar' && this._clanWarData.state != 'warEnded') {
-			this.clanWarExists = true;
-			this._setClanWarInfo();
+		_this._clanWarData = await _this.client.currentClanWar(_this._clanTag);
+		if (_this._clanWarData.state != 'notInWar') {
+			_this.clanWarExists = true;
+			_this._setClanWarInfo();
 		}
 		// league
 		let CWL;
 		// do: 防止网络原因造成 CWL 没有数据
 		do {
-			CWL = await this.client.clanWarLeague(this._clanTag);
+			CWL = await _this.client.clanWarLeague(_this._clanTag);
 			log.debug('CWL: ', JSON.stringify(CWL).toString());
 			if (CWL.statusCode === 404) break;
 		} while (CWL.ok === false);
 		if (CWL.state != 'notInWar' && CWL.statusCode != 404) {
-			this.leagueExists = true;
-			await this._setLeagueData(CWL);
+			_this.leagueExists = true;
+			await _this._setLeagueData(CWL);
 		}
+		this._clanUpdateTime = new Date();
 	}
 
 	/**
@@ -287,12 +292,12 @@ class Coc {
 			let point = 0;
 			write_data.push({ name, tag, point })
 		});
-		fs.writeFileSync('/home/manu/QQ-rebot/mcl/clashOfClans/resources/point.json', JSON.stringify(write_data));
+		fs.writeFileSync('resources/point.json', JSON.stringify(write_data));
 	}
 
 	addPoints(id, points) {
 		this._memberPoints[id].point += points;
-		fs.writeFileSync('/home/manu/QQ-rebot/mcl/clashOfClans/resources/point.json', JSON.stringify(this._memberPoints));
+		fs.writeFileSync('resources/point.json', JSON.stringify(this._memberPoints));
 		return true;
 	}
 
@@ -324,6 +329,10 @@ class Coc {
 		} else {
 			return false;
 		}
+	}
+
+	stopUpgrade() {
+		clearInterval(this._clanUpdateInterval);
 	}
 }
 

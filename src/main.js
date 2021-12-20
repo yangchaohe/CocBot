@@ -26,6 +26,8 @@ let main = {
     group: 707075482,
     wf: undefined,
     unlock: undefined,
+    sender: undefined,
+    senderName: undefined,
     setGroup: function (v) {
         log.debug(`set main.group = ${v}`);
         main.group = v;
@@ -38,6 +40,15 @@ let main = {
         log.debug(`set main.unlock = ${v}`);
         main.unlock = v;
     },
+    setSenderName: function (v) {
+        log.debug(`set main.senderName = ${v}`);
+        main.senderName = v;
+    },
+    setSender: function (v) {
+        log.debug(`set main.sender = ${v}`);
+        main.sender = v;
+    },
+
     getGroup: function (){
         log.debug(`get main.group = ${main.group}`);
         return main.group;
@@ -49,6 +60,14 @@ let main = {
     getUnlock: function (){
         log.debug(`get main.unlock = ${main.unlock}`);
         return main.unlock;
+    },
+    getSenderName: function (){
+        log.debug(`get main.senderName = ${main.senderName}`);
+        return main.senderName;
+    },
+    getSender: function (){
+        log.debug(`get main.sender = ${main.sender}`);
+        return main.sender;
     }
 };
 
@@ -103,6 +122,10 @@ async function start() {
         .option('-i, --init', '初始化成员的积分值')
         .option('-a, --auto-add', '自动为新成员增加积分选项')
         .action(point);
+    co
+        .command('ulay')
+        .description('分享自己的阵型')
+        .action(uploadLayout);
 
     co
         .configureOutput({
@@ -126,6 +149,8 @@ async function start() {
 
                 main.setGroup(group);
                 main.setWf(waitFor);
+                main.setSenderName(senderName);
+                main.setSender(sender);
                 text = text.trim();
 
                 if (text.startsWith('co point') && !checkIsAdmin(sender)) {
@@ -334,27 +359,25 @@ function layout(level, limit) {
     });
 }
 
-async function uploadLayout(level, waitFor) {
-    level = parseInt(level);
-    if (!typeof (level) === 'number') {
-        sendGrp({
-            mes: new Message().addPlain('指令错误! \n正确用法：「/coc 上传阵型 数字」'),
-        })
-        return;
-    }
+async function uploadLayout() {
+    sendGrp({
+        mes: new Message().addPlain('请输入上传阵型的大本等级'),
+    })
+    let level = await main.wf.text();
+    level = myParseInt(level);
     sendGrp({
         mes: new Message().addPlain('请输入该阵型的图片'),
     });
     sendGrp({
         mes: new Message().addPlain('注意：上传阵型必选世界类型、图片和链接。'),
     })
-    const image = await waitFor.messageChain();
+    const image = await main.wf.messageChain();
     const { url: imgUrl } = await image[1];
     sendGrp({
         mes: new Message().addPlain('请输入该阵型的链接'),
     });
     do {
-        var link = await waitFor.messageChain();
+        var link = await main.wf.messageChain();
         if (link[1].type == 'Xml') {
             xml = link[1].xml;
             parseString(xml, function (err, result) { link = result.msg.$.url; });
@@ -378,10 +401,10 @@ async function uploadLayout(level, waitFor) {
         sendGrp({
             mes: new Message().addPlain('请输入该阵型的类型（主世界，部落战，夜世界）'),
         });
-        var type = await waitFor.text();
+        var type = await main.wf.text();
     } while (!['主世界', '部落战', '夜世界'].includes(type))
     // download
-    let auth = memberName + '-' + member.toString();
+    let auth = main.senderName + '-' + main.sender;
     let imgPath = 'resources/'
         + 'layout/'
         + 'Level'
@@ -444,7 +467,6 @@ async function league(num){
 async function point(options){
     log.debug('point options: %s', JSON.stringify(options));
 
-    // main.unlock();
     // id = parseInt(id);
     // points = parseInt(points);
 

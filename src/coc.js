@@ -285,6 +285,7 @@ class Coc {
 
 	async initPoint() {
 		let member_list = (await this.client.clanMembers(this._clanTag)).items;
+		fs.writeFileSync(`resources/point-${(new Date).toISOString()}.json`, JSON.stringify(write_data));
 		let write_data = [];
 		member_list.forEach((member) => {
 			let name = member.name;

@@ -464,48 +464,53 @@ async function league(num){
     }
 }
 
-async function point(options){
-    log.debug('point options: %s', JSON.stringify(options));
+async function point(opt){
+    log.debug('point options: %s', JSON.stringify(opt));
 
-    // id = parseInt(id);
-    // points = parseInt(points);
-
-    // let pointList = coc.showPoints();
-
-    // if (!Number.isNaN(id) && typeof (id) === 'number'){
-
-    //     if (id > pointList.length) {
-    //         sendGrp({
-    //             mes: new Message().addPlain('Out of range!'),
-    //         });
-    //     }
-    //     if (Number.isNaN(points) || typeof (points) !== 'number'){
-    //         sendGrp({
-    //             mes: new Message().addPlain(id + '. ' + pointList[id].name + ': ' + pointList[id].point),
-    //         });
-    //     } else {
-    //         if (permission == Bot.groupPermission.MEMBER) {
-    //             sendGrp({
-    //                 mes: new Message().addPlain('您没有相关权限设置'),
-    //             });
-    //             return;
-    //         }
-    //         coc.addPoints(id, points);
-    //         sendGrp({
-    //             mes: new Message().addPlain('积分设置完成'),
-    //         });
-    //     }
-    // } else {
-    //     let messageArr = [];
-    //     pointList.forEach((mp, index) => {
-    //         let str = index + '. ' + mp.name + ': ' + mp.point;
-    //         messageArr.push(str);
-    //     });
-    //     sendGrp({
-    //         mes: new Message().addPlain(messageArr.join('\n')),
-    //     })
-    // }
+    if (opt.set) {
+        var pointList = coc.showPoints();
+        sendGrp({message: new Message().addPlain('成员id')});
+        var id = myParseInt(main.wf.text());
+        if (id > pointList.length) {
+            sendGrp({
+                mes: new Message().addPlain('没有该成员'),
+            });
+        }
+        sendGrp({message: new Message().addPlain('积分')});
+        var point = myParseInt(main.wf.text());
+        coc.addPoints(id, points);
+        sendGrp({
+            mes: new Message().addPlain('积分设置完成'),
+        });
+    }
+    if (opt.show) {
+        var pointList = coc.showPoints();
+        var messageArr = [];
+        pointList.forEach((mp, index) => {
+             var str = index + '. ' + mp.name + ': ' + mp.point;
+            messageArr.push(str);
+        });
+        sendGrp({
+            mes: new Message().addPlain(messageArr.join('\n')),
+        })
+    }
+    if (opt.init) {
+        sendGrp({
+            mes: new Message().addPlain('初始化成员积分值会归零所有积分，是否确认？(y/n)'),
+        });
+        let confirm = main.wf.text();
+        if (confirm == 'y') {
+            coc.initPoint;
+            sendGrp({message: new Message().addPlain('操作成功')});
+        } else {
+            sendGrp({message: new Message().addPlain('操作取消')});
+        }
+    }
+    if (opt.auto) {
+        return;
+    }
 }
+
 function myParseInt(value, dummyPrevious) {
     // parseInt takes a string and a radix
     const parsedValue = parseInt(value, 10);
